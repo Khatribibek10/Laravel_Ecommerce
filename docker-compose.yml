@@ -1,0 +1,101 @@
+version: '3'
+
+networks:
+  laravel:
+  # wallet-microservice-core_laravel:
+    # external: true
+
+services:
+  site:
+    build:
+      context: .
+      dockerfile: nginx.dockerfile
+    container_name: nginx_ecommerce_project
+    ports:
+      - "0040:80"
+    volumes:
+      - ./src:/var/www/html:delegated
+    depends_on:
+      - php
+      - mysql
+      - phpmyadmin
+    networks:
+      - laravel
+      # - wallet-microservice-core_laravel
+
+  mysql:
+    image: mysql:8.0.32
+    container_name: mysql_ecommerce_project
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "0006:3306"
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: mysql_ecommerce_project
+      MYSQL_USER: mysql_ecommerce_project
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql_ecommerce_project
+    networks:
+      - laravel
+      # - wallet-microservice-core_laravel
+
+  php:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: php_ecommerce_project
+    volumes:
+      - ./src:/var/www/html:delegated
+    ports:
+      - "0020:9000"
+    networks:
+      - laravel
+      # - wallet-microservice-core_laravel
+
+  composer:
+    build:
+      context: .
+      dockerfile: composer.dockerfile
+    container_name: composer_ecommerce_project
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    user: laravel
+    networks:
+      - laravel
+    entrypoint: ['composer', '--ignore-platform-reqs']
+
+  artisan:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: artisan_ecommerce_project
+    volumes:
+      - ./src:/var/www/html:delegated
+    depends_on:
+      - mysql
+    working_dir: /var/www/html
+    user: laravel
+    entrypoint: ['php', '/var/www/html/artisan']
+    networks:
+      - laravel
+  
+  phpmyadmin:
+    depends_on:
+      - mysql
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_ecommerce_project
+    restart: always
+    ports:
+      - 0050:80
+    environment:
+      PMA_HOST: mysql_ecommerce_project
+      MYSQL_ROOT_PASSWORD: secret
+    networks:
+      - laravel
